@@ -1,0 +1,27 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-delete-bucket
+provisioner: rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster
+# set the reclaim policy to delete the bucket and all objects
+# when its OBC is deleted.
+reclaimPolicy: Delete
+parameters:
+   objectStoreName: my-store
+   objectStoreNamespace: rook-ceph # namespace:cluster
+---
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: home
+spec:
+  bucketName: home
+  storageClassName: rook-ceph-delete-bucket
+---
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: home-quarantine
+spec:
+  bucketName: home-quarantine
+  storageClassName: rook-ceph-delete-bucket
