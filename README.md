@@ -44,6 +44,12 @@ And last the "toolbox" pod, needed for uploading the lua scripts (since lua is n
 kubectl apply -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/toolbox.yaml
 ```
 
+> Note that since Rook support only Ceph "quincy" and my developer build is from Ceph "reef", you would need to run these two commands manually for the object store to run:
+``` console
+kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph osd pool create .rgw.root 32 32 --yes_i_really_mean_it
+kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph osd pool application enable .rgw.root rgw
+```
+
 ## Test Setup
 
 Once we have everything up and running, we use the toolbox pod to upload 2 [lua scripts](https://docs.ceph.com/en/latest/radosgw/lua-scripting/) to the RGW:
@@ -51,13 +57,16 @@ Once we have everything up and running, we use the toolbox pod to upload 2 [lua 
 * in the "pre request" context we are going to do the quarantine:
 
 ```console
-kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=quarantine.lua --context=preRequest
+TOOLS_POD=$(kubectl get pod -n rook-ceph -l app=rook-ceph-tools -o jsonpath="{.items[0].metadata.name}")
+kubectl cp ./quarantine.lua $POD:/home/rook -n rook-ceph
+kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=/home/rook/quarantine.lua --context=preRequest
 ```
 
 * in the "data" context we are going to perform the ransomware detection:
 
 ```console
-kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=ransomware.lua --context=data
+kubectl cp ./ransomware.lua $POD:/home/rook -n rook-ceph
+kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=/home/rook/ransomware.lua --context=data
 ```
 
 we can create 2 buckets. The 1st would be the regular one and the 2nd would be the one we use for quarantine.
@@ -82,8 +91,8 @@ export AWS_URL=$(minikube service --url rook-ceph-rgw-my-store-external -n rook-
 Get the user credentials:
 
 ```console
-export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret ceph-notification-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
-export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret ceph-notification-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode)
+export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret home -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
+export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret home -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode)
 ```
 
 ## Test
