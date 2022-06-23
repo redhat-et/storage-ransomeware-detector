@@ -69,8 +69,8 @@ kubectl cp ./ransomware.lua $TOOLS_POD:/home/rook -n rook-ceph
 kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=/home/rook/ransomware.lua --context=data
 ```
 
-we can create 2 buckets. The 1st would be the regular one and the 2nd would be the one we use for quarantine.
-We would use Rook's [Object Bucket Claim](https://rook.io/docs/rook/v1.9/ceph-object-bucket-claim.html) for that:
+Now create 2 buckets. The 1st would be the regular one and the 2nd would be the one we use for quarantine.
+We would use Rook's [Object Bucket Claim](https://rook.io/docs/rook/v1.9/ceph-object-bucket-claim.html)(OBC) for that:
 
 ```console
 kubectl apply -f obc-with-quarantine.yaml
@@ -88,11 +88,19 @@ And expose it to the machine running the minikube VM:
 export AWS_URL=$(minikube service --url rook-ceph-rgw-my-store-external -n rook-ceph)
 ```
 
-Get the user credentials:
+Get the user credentials of the 1st bucket:
 
 ```console
 export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret home -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
 export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret home -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode)
+```
+
+Each OBC, create its own user, however, for our usecase, we need both buckets to be used by the same user.
+So, we would first get the user create for the 1st bucket (according to its access key), and link it to the 2nd bucket:
+
+```console
+USER_ID=$(kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin user info --access-key $AWS_ACCESS_KEY_ID | jq -r .user_id)
+kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin bucket link --uid=$USER_ID --bucket=home-quarantine
 ```
 
 ## Test
@@ -101,7 +109,9 @@ Create a directory called "home", should contain a variety of files: text, pdf, 
 We will upload the content of the "home" directory to the RGW:
 
 ```console
-aws aws --endpoint-url "$AWS_URL" s3 cp home s3://home/
+cd home
+for FILE in *; do aws --endpoint-url $AWS_URL s3 cp $FILE s3://home; done
+cd -
 ```
 
 Then run the `wannacry.sh` script to have encrypted version of the files in the "enc-home" directory:
@@ -112,9 +122,10 @@ Then run the `wannacry.sh` script to have encrypted version of the files in the 
 
 And finally upload the content of the "enc-home" directory to RGW and see when our lua script detect the encryption.
 
-
 ```console
-aws aws --endpoint-url "$AWS_URL" s3 cp enc-home s3://home/
+cd home
+for FILE in *; do aws --endpoint-url $AWS_URL s3 cp $FILE s3://home; done
+cd -
 ```
 
 Check the RGW log to see that the lua script detected the ransomware and activated quarantine.
@@ -123,10 +134,10 @@ Check the RGW log to see that the lua script detected the ransomware and activat
 kubectl logs -l app=rook-ceph-rgw -n rook-ceph --tail 100
 ```
 
-And more important, verify that the new objects were indeed quarantines:
+And more important, verify that the new objects were indeed quarantined:
 
 ```console
-aws --endpoint-url "$AWS_URL" s3 ls s3://home
-aws --endpoint-url "$AWS_URL" s3 ls s3://home-quarantine
+aws --endpoint-url $AWS_URL s3 ls s3://home
+aws --endpoint-url $AWS_URL s3 ls s3://home-quarantine
 ```
 
