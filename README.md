@@ -58,14 +58,14 @@ Once we have everything up and running, we use the toolbox pod to upload 2 [lua 
 
 ```console
 TOOLS_POD=$(kubectl get pod -n rook-ceph -l app=rook-ceph-tools -o jsonpath="{.items[0].metadata.name}")
-kubectl cp ./quarantine.lua $POD:/home/rook -n rook-ceph
+kubectl cp ./quarantine.lua $TOOLS_POD:/home/rook -n rook-ceph
 kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=/home/rook/quarantine.lua --context=preRequest
 ```
 
 * in the "data" context we are going to perform the ransomware detection:
 
 ```console
-kubectl cp ./ransomware.lua $POD:/home/rook -n rook-ceph
+kubectl cp ./ransomware.lua $TOOLS_POD:/home/rook -n rook-ceph
 kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- radosgw-admin script put --infile=/home/rook/ransomware.lua --context=data
 ```
 
