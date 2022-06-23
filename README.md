@@ -38,10 +38,10 @@ Then, the "test" (single node) object store:
 kubectl apply -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/object-test.yaml
 ```
 
-And last the "toolbox" pod, needed for uploading the lua scripts (since lua is not part of Rook yet):
+And last, a custom build of the "toolbox" pod, needed for uploading the lua scripts (since lua is not part of Rook yet):
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/toolbox.yaml
+kubectl apply -f toolbox.yaml
 ```
 
 > Note that since Rook support only Ceph "quincy" and my developer build is from Ceph "reef", you would need to run these two commands manually for the object store to run:
