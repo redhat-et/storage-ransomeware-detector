@@ -68,8 +68,8 @@ function detect_ransomware()
     -- object with entropy already exists
     RGWDebugLog("object "..Request.Object.Name.." updated. entropy changed from "..tostring(current_entropy).." to "..tostring(new_entropy))
     
-    local inc_threshold = 0.05 -- 5% increase in object entropy
-    local enc_threshold = 0.5 -- minimum entropy for encryption
+    local inc_threshold = 0.005 -- 0.5% increase in object entropy
+    local enc_threshold = 0.9 -- minimum entropy for encryption
     local bucket_threshold = 0.2 -- if bucket has 20% encrypted files it is quarantines
 
     local inc_rate = (new_entropy - current_entropy)/current_entropy
